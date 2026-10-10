@@ -8,5 +8,5 @@ bun install
 cp .env.example .env   # APP_PORT dan VITE_DELCOM_BASEURL
 bun run dev            # jalankan aplikasi
 bun run test           # unit test (Vitest)
-bun run coverage       # coverage v8 (threshold 100%)
+bun run test:coverage  # coverage v8 (threshold 100%)
 ```

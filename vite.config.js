@@ -4,14 +4,21 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  const port = Number(env.APP_PORT || env.PORT) || 3000
 
   return {
     plugins: [vue(), tailwindcss()],
     server: {
-      port: Number(env.APP_PORT) || 5173,
+      host: true, // 0.0.0.0, agar bisa diakses via 127.0.0.1 / IPv4 / hostname lain
+      port,
+      strictPort: true, // gagal jelas jika port bentrok, bukan pindah diam-diam
+      allowedHosts: true,
     },
     preview: {
-      port: Number(env.APP_PORT) || 5173,
+      host: true,
+      port,
+      strictPort: true,
+      allowedHosts: true,
     },
     define: {
       DELCOM_BASEURL: JSON.stringify(
