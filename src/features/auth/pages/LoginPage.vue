@@ -1,4 +1,4 @@
-
+﻿
 <script setup>
 import { ref } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
@@ -70,12 +70,12 @@ async function handleLogin() {
 
     <form class="mt-8 space-y-5" @submit.prevent="handleLogin">
       <div>
-        <label for="login-email" class="mb-2 block text-sm font-medium text-slate-700">
+        <label for="login-email-input" class="mb-2 block text-sm font-medium text-slate-700">
           Email
         </label>
 
         <input
-          id="login-email"
+          id="login-email-input"
           v-model="email"
           type="email"
           autocomplete="email"
@@ -85,13 +85,13 @@ async function handleLogin() {
       </div>
 
       <div>
-        <label for="login-password" class="mb-2 block text-sm font-medium text-slate-700">
+        <label for="login-password-input" class="mb-2 block text-sm font-medium text-slate-700">
           Kata sandi
         </label>
 
         <div class="flex overflow-hidden rounded-xl border border-slate-300 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-100">
           <input
-            id="login-password"
+            id="login-password-input"
             v-model="password"
             :type="isPasswordVisible ? 'text' : 'password'"
             autocomplete="current-password"
@@ -118,6 +118,7 @@ async function handleLogin() {
       </p>
 
       <button
+        id="login-submit-button"
         type="submit"
         :disabled="authStore.isAuthLogin"
         class="w-full rounded-xl bg-blue-700 px-4 py-3 font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
@@ -137,3 +138,5 @@ async function handleLogin() {
     </p>
   </div>
 </template>
+
+
