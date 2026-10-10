@@ -1,165 +1,75 @@
-
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-
 import { fetchApi } from '../../../helpers/apiHelper.js'
-import {
-  getAucations,
-  getAucationById,
-  addAucation,
-  updateAucation,
-  uploadAucationCover,
-  deleteAucation,
-  addBid,
-  deleteBid,
-  deleteAllAucations,
-} from './aucationApi.js'
+import * as api from './aucationApi.js'
 
 vi.mock('../../../helpers/apiHelper.js', () => ({
-  fetchApi: vi.fn(),
+  fetchApi: vi.fn(() => Promise.resolve({ status: 'success' })),
 }))
 
 describe('aucationApi', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    fetchApi.mockResolvedValue({ success: true })
-  })
+  beforeEach(() => vi.clearAllMocks())
 
-  describe('getAucations', () => {
-    it('mengambil semua lelang tanpa filter', async () => {
-      await getAucations()
-
-      expect(fetchApi).toHaveBeenCalledWith('/aucations')
-    })
-
-    it('mengirim filter is_me', async () => {
-      await getAucations({ is_me: true })
-
-      expect(fetchApi).toHaveBeenCalledWith('/aucations?is_me=true')
-    })
-
-    it('mengirim filter is_closed', async () => {
-      await getAucations({ is_closed: false })
-
-      expect(fetchApi).toHaveBeenCalledWith('/aucations?is_closed=false')
-    })
-
-    it('mengirim kedua filter sekaligus', async () => {
-      await getAucations({ is_me: true, is_closed: false })
-
-      expect(fetchApi).toHaveBeenCalledWith(
-        '/aucations?is_me=true&is_closed=false',
-      )
-    })
-
-    it('mengabaikan filter null dan undefined', async () => {
-      await getAucations({
-        is_me: null,
-        is_closed: undefined,
-      })
-
-      expect(fetchApi).toHaveBeenCalledWith('/aucations')
-    })
-  })
-
-  describe('getAucationById', () => {
-    it('mengambil detail lelang berdasarkan ID', async () => {
-      await getAucationById(12)
-
-      expect(fetchApi).toHaveBeenCalledWith('/aucations/12')
-    })
-
-    it('melakukan encoding pada ID', async () => {
-      await getAucationById('item/12')
-
-      expect(fetchApi).toHaveBeenCalledWith('/aucations/item%2F12')
-    })
-  })
-
-  it('menambahkan lelang dengan metode POST', async () => {
-    const payload = {
-      title: 'Lelang Laptop',
-      description: 'Laptop bekas',
-      start_bid: 1000000,
-      closed_at: '2026-12-31',
-    }
-
-    await addAucation(payload)
-
+  it('getAucations mengirim filter is_me dan is_closed', async () => {
+    await api.getAucations({ is_me: 1, is_closed: 0 })
     expect(fetchApi).toHaveBeenCalledWith('/aucations', {
-      method: 'POST',
-      body: payload,
+      params: { is_me: 1, is_closed: 0 },
+    })
+    await api.getAucations()
+    expect(fetchApi).toHaveBeenLastCalledWith('/aucations', {
+      params: { is_me: undefined, is_closed: undefined },
     })
   })
 
-  it('memperbarui lelang dengan metode PUT', async () => {
-    const payload = { title: 'Judul Baru' }
+  it('getAucationById memanggil GET /aucations/:id', async () => {
+    await api.getAucationById(7)
+    expect(fetchApi).toHaveBeenCalledWith('/aucations/7')
+  })
 
-    await updateAucation(5, payload)
+  it('addAucation memanggil POST /aucations', async () => {
+    const body = { title: 'a', description: 'b', start_bid: 1, closed_at: 'x' }
+    await api.addAucation(body)
+    expect(fetchApi).toHaveBeenCalledWith('/aucations', { method: 'POST', body })
+  })
 
-    expect(fetchApi).toHaveBeenCalledWith('/aucations/5', {
+  it('updateAucation memanggil PUT /aucations/:id', async () => {
+    await api.updateAucation(3, { title: 'z' })
+    expect(fetchApi).toHaveBeenCalledWith('/aucations/3', {
       method: 'PUT',
-      body: payload,
+      body: { title: 'z' },
     })
   })
 
-  it('mengunggah cover menggunakan FormData', async () => {
-    const file = new File(['gambar'], 'cover.png', {
-      type: 'image/png',
-    })
-
-    await uploadAucationCover(7, file)
-
+  it('uploadAucationCover mengirim FormData berisi field cover', async () => {
+    const file = new File(['x'], 'c.png', { type: 'image/png' })
+    await api.uploadAucationCover(3, file)
     const [endpoint, options] = fetchApi.mock.calls[0]
-
-    expect(endpoint).toBe('/aucations/7/cover')
+    expect(endpoint).toBe('/aucations/3/cover')
     expect(options.method).toBe('POST')
-    expect(options.body).toBeInstanceOf(FormData)
     expect(options.body.get('cover')).toBe(file)
   })
 
-  it('menghapus satu lelang', async () => {
-    await deleteAucation(8)
-
-    expect(fetchApi).toHaveBeenCalledWith('/aucations/8', {
-      method: 'DELETE',
-    })
+  it('deleteAucation memanggil DELETE /aucations/:id', async () => {
+    await api.deleteAucation(3)
+    expect(fetchApi).toHaveBeenCalledWith('/aucations/3', { method: 'DELETE' })
   })
 
-  it('menambahkan bid', async () => {
-    const payload = { amount: 1500000 }
-
-    await addBid(8, payload)
-
-    expect(fetchApi).toHaveBeenCalledWith('/aucations/8/bids', {
+  it('addBid memanggil POST /aucations/:id/bids', async () => {
+    await api.addBid(3, { bid: 500 })
+    expect(fetchApi).toHaveBeenCalledWith('/aucations/3/bids', {
       method: 'POST',
-      body: payload,
+      body: { bid: 500 },
     })
   })
 
-  it('menghapus bid tanpa payload', async () => {
-    await deleteBid(8)
-
-    expect(fetchApi).toHaveBeenCalledWith('/aucations/8/bids', {
+  it('deleteBid memanggil DELETE /aucations/:id/bids', async () => {
+    await api.deleteBid(3)
+    expect(fetchApi).toHaveBeenCalledWith('/aucations/3/bids', {
       method: 'DELETE',
     })
   })
 
-  it('menghapus bid dengan payload', async () => {
-    const payload = { bid_id: 20 }
-
-    await deleteBid(8, payload)
-
-    expect(fetchApi).toHaveBeenCalledWith('/aucations/8/bids', {
-      method: 'DELETE',
-      body: payload,
-    })
-  })
-
-  it('menghapus seluruh lelang', async () => {
-    await deleteAllAucations()
-
-    expect(fetchApi).toHaveBeenCalledWith('/aucations', {
-      method: 'DELETE',
-    })
+  it('deleteAllAucations memanggil DELETE /aucations', async () => {
+    await api.deleteAllAucations()
+    expect(fetchApi).toHaveBeenCalledWith('/aucations', { method: 'DELETE' })
   })
 })

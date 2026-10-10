@@ -92,3 +92,78 @@ export function formatDate(value) {
     year: 'numeric',
   }).format(date)
 }
+
+/**
+ * Mengubah nilai input datetime-local menjadi format API (YYYY-MM-DD HH:mm:ss).
+ */
+export function toApiDateTime(value) {
+  if (!value) {
+    return ''
+  }
+
+  const normalized = String(value).replace('T', ' ')
+
+  return normalized.length === 16 ? `${normalized}:00` : normalized
+}
+
+/**
+ * Mengubah tanggal dari API menjadi nilai input datetime-local.
+ */
+export function toInputDateTime(value) {
+  if (!value) {
+    return ''
+  }
+
+  return String(value).replace(' ', 'T').slice(0, 16)
+}
+
+/**
+ * Menentukan apakah waktu penutupan lelang sudah lewat.
+ */
+export function isClosedAt(closedAt, now = Date.now()) {
+  if (!closedAt) {
+    return false
+  }
+
+  const time = new Date(String(closedAt).replace(' ', 'T')).getTime()
+
+  return !Number.isNaN(time) && time <= now
+}
+
+/**
+ * Menghasilkan teks hitung mundur sebelum lelang ditutup.
+ */
+export function getCountdown(closedAt, now = Date.now()) {
+  if (!closedAt) {
+    return '-'
+  }
+
+  const time = new Date(String(closedAt).replace(' ', 'T')).getTime()
+
+  if (Number.isNaN(time) || time <= now) {
+    return 'Lelang berakhir'
+  }
+
+  const totalMinutes = Math.floor((time - now) / 60000)
+  const days = Math.floor(totalMinutes / 1440)
+  const hours = Math.floor((totalMinutes % 1440) / 60)
+  const minutes = totalMinutes % 60
+
+  if (days > 0) {
+    return `Sisa ${days} hari ${hours} jam`
+  }
+
+  return `Sisa ${hours} jam ${minutes} menit`
+}
+
+/**
+ * Mengambil nominal tawaran tertinggi dari daftar bid.
+ * Mengembalikan null jika tidak ada bid berupa objek bernominal.
+ */
+export function getHighestBid(bids) {
+  const amounts = (Array.isArray(bids) ? bids : [])
+    .map((item) => Number(item?.bid))
+    .filter((amount) => Number.isFinite(amount))
+
+  return amounts.length > 0 ? Math.max(...amounts) : null
+}

@@ -1,7 +1,7 @@
-
 <script setup>
 import { onMounted } from 'vue'
 import { useUsersStore } from '../states/usersStore.js'
+import { getAssetUrl } from '../../../helpers/apiHelper.js'
 
 const usersStore = useUsersStore()
 
@@ -15,27 +15,13 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-100 p-4 sm:p-8">
-    <section class="mx-auto max-w-6xl">
-      <header class="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p class="text-sm font-semibold uppercase tracking-widest text-blue-700">
-            Student Portal
-          </p>
-          <h1 class="mt-2 text-3xl font-bold text-slate-900">
-            Direktori Pengguna
-          </h1>
-          <p class="mt-2 text-slate-600">
-            Daftar pengguna yang terdaftar di sistem.
-          </p>
-        </div>
-
-        <RouterLink
-          to="/profile"
-          class="rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"
-        >
-          Profil Saya
-        </RouterLink>
+  <div>
+    <section>
+      <header class="mb-8">
+        <h1 class="text-3xl font-bold text-slate-900">Direktori Pengguna</h1>
+        <p class="mt-2 text-slate-600">
+          Daftar pengguna yang terdaftar di sistem.
+        </p>
       </header>
 
       <div
@@ -56,7 +42,7 @@ onMounted(async () => {
 
         <button
           type="button"
-          class="mt-4 rounded-xl bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800"
+          class="mt-4 rounded-xl bg-indigo-700 px-4 py-2 font-semibold text-white hover:bg-indigo-800"
           @click="usersStore.fetchUsers().catch(() => {})"
         >
           Coba lagi
@@ -72,29 +58,29 @@ onMounted(async () => {
 
       <div v-else class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <article
-          v-for="(user, index) in usersStore.users"
-          :key="user.id ?? user.userId ?? user.email ?? index"
+          v-for="user in usersStore.users"
+          :key="user.id"
           class="rounded-2xl bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
         >
           <div class="flex items-center gap-4">
             <img
-              v-if="user.photo || user.avatar || user.profilePhoto"
-              :src="user.photo || user.avatar || user.profilePhoto"
-              :alt="`Foto ${user.name || user.fullName || 'pengguna'}`"
+              v-if="user.photo"
+              :src="getAssetUrl(user.photo)"
+              :alt="`Foto ${user.name}`"
               class="h-14 w-14 rounded-full object-cover"
             />
 
             <div
               v-else
-              class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-bold text-blue-700"
+              class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xl font-bold text-indigo-700"
               aria-hidden="true"
             >
-              {{ (user.name || user.fullName || user.email || 'U').charAt(0).toUpperCase() }}
+              {{ (user.name || 'U').charAt(0).toUpperCase() }}
             </div>
 
             <div class="min-w-0">
               <h2 class="truncate font-bold text-slate-900">
-                {{ user.name || user.fullName || 'Nama tidak tersedia' }}
+                {{ user.name || 'Nama tidak tersedia' }}
               </h2>
               <p class="break-all text-sm text-slate-500">
                 {{ user.email || 'Email tidak tersedia' }}
@@ -107,11 +93,11 @@ onMounted(async () => {
               Informasi pengguna
             </p>
             <p class="mt-2 text-sm text-slate-600">
-              {{ user.role || user.position || 'Pengguna terdaftar' }}
+              {{ user.email_verified_at ? 'Email terverifikasi' : 'Pengguna terdaftar' }}
             </p>
           </div>
         </article>
       </div>
     </section>
-  </main>
+  </div>
 </template>

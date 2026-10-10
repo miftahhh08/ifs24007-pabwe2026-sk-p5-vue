@@ -1,4 +1,3 @@
-
 import { fetchApi } from '../../../helpers/apiHelper.js'
 
 /**
@@ -45,6 +44,7 @@ export function uploadMyPhoto(file) {
 /**
  * Mengubah kata sandi pengguna.
  * PUT /users/me/password
+ * Body: password, new_password, new_password_confirmation
  */
 export function updateMyPassword(passwordData) {
   return fetchApi('/users/me/password', {

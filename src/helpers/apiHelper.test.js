@@ -12,8 +12,9 @@ import {
   getAccessToken,
   putAccessToken,
   fetchApi,
-  fetchAPI,
+  
   getApiBaseUrl,
+  getAssetUrl,
 } from './apiHelper.js'
 
 describe('apiHelper', () => {
@@ -289,19 +290,6 @@ describe('apiHelper', () => {
     expect(options.credentials).toBe('include')
   })
 
-  it('menggunakan alias fetchAPI', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      headers: { get: () => 'application/json' },
-      json: async () => ({ success: true }),
-    })
-
-    vi.stubGlobal('fetch', fetchMock)
-
-    await expect(fetchAPI('/posts')).resolves.toEqual({
-      success: true,
-    })
-  })
 
   it('membaca respons teks jika content-type tidak tersedia', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
@@ -313,5 +301,12 @@ describe('apiHelper', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(fetchApi('/health')).resolves.toBe('OK')
+  })
+
+  it('getAssetUrl mengubah path relatif dan mempertahankan URL absolut', () => {
+    expect(getAssetUrl('')).toBe('')
+    expect(getAssetUrl('https://cdn.test/a.png')).toBe('https://cdn.test/a.png')
+    expect(getAssetUrl('img/a.png')).toBe('https://open-api.delcom.org/img/a.png')
+    expect(getAssetUrl('/img/a.png')).toBe('https://open-api.delcom.org/img/a.png')
   })
 })

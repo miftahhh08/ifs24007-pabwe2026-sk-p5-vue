@@ -1,71 +1,59 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
+import Swal from 'sweetalert2'
+import { renderWithProviders } from '../../../test-utils.js'
 import NavbarComponent from './NavbarComponent.vue'
+import { useAuthStore } from '../../auth/states/authStore.js'
 
-const { pushMock } = vi.hoisted(() => ({
-  pushMock: vi.fn(),
-}))
+vi.mock('sweetalert2', () => ({ default: { fire: vi.fn() } }))
 
-vi.mock('vue-router', () => ({
-  useRouter: () => ({
-    push: pushMock,
-  }),
-}))
-
-describe('NavbarComponent.vue', () => {
+describe('NavbarComponent', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
   })
 
-  it('menampilkan nama aplikasi dan tombol navigasi', () => {
-    const wrapper = mount(NavbarComponent)
-
-    expect(wrapper.text()).toContain('AuctionHub')
-    expect(wrapper.text()).toContain('Beranda')
-    expect(wrapper.text()).toContain('Keluar')
-    expect(wrapper.find('header').exists()).toBe(true)
+  it('menampilkan nama pengguna aktif', async () => {
+    localStorage.setItem('authUser', JSON.stringify({ name: 'Budi' }))
+    const { wrapper, router } = renderWithProviders(NavbarComponent)
+    await router.isReady()
+    expect(wrapper.find('[data-testid="navbar-user"]').text()).toBe('Budi')
   })
 
-  it('mengarahkan ke beranda saat tombol AuctionHub diklik', async () => {
-    const wrapper = mount(NavbarComponent)
-
-    await wrapper.find('button[aria-label="Beranda"]').trigger('click')
-
-    expect(pushMock).toHaveBeenCalledWith('/')
+  it('menyembunyikan nama bila belum ada user', async () => {
+    const { wrapper, router } = renderWithProviders(NavbarComponent)
+    await router.isReady()
+    expect(wrapper.find('[data-testid="navbar-user"]').exists()).toBe(false)
   })
 
-  it('mengarahkan ke beranda saat tombol Beranda diklik', async () => {
-    const wrapper = mount(NavbarComponent)
-    const buttons = wrapper.findAll('button')
-    const homeButton = buttons.find((button) => button.text() === 'Beranda')
-
-    await homeButton.trigger('click')
-
-    expect(pushMock).toHaveBeenCalledWith('/')
+  it('mengirim event toggle-sidebar', async () => {
+    const { wrapper } = renderWithProviders(NavbarComponent)
+    await wrapper.find('button[aria-label="Buka menu"]').trigger('click')
+    expect(wrapper.emitted('toggle-sidebar')).toHaveLength(1)
   })
 
-  it('menghapus accessToken dan mengarahkan ke login saat keluar', async () => {
-    localStorage.setItem('accessToken', 'token-dummy')
+  it('logout setelah konfirmasi lalu menuju halaman login', async () => {
+    Swal.fire.mockResolvedValue({ isConfirmed: true })
+    localStorage.setItem('accessToken', 'tok')
+    const { wrapper, router } = renderWithProviders(NavbarComponent)
+    await router.isReady()
+    const auth = useAuthStore()
+    auth.token = 'tok'
 
-    const wrapper = mount(NavbarComponent)
-    const logoutButton = wrapper.findAll('button')
-      .find((button) => button.text() === 'Keluar')
+    await wrapper.findAll('button').at(-1).trigger('click')
+    await flushPromises()
 
-    await logoutButton.trigger('click')
-
+    expect(auth.token).toBe('')
     expect(localStorage.getItem('accessToken')).toBeNull()
-    expect(pushMock).toHaveBeenCalledWith('/login')
+    expect(router.currentRoute.value.name).toBe('login')
   })
 
-  it('tetap mengarahkan ke login jika accessToken tidak tersedia', async () => {
-    const wrapper = mount(NavbarComponent)
-    const logoutButton = wrapper.findAll('button')
-      .find((button) => button.text() === 'Keluar')
-
-    await logoutButton.trigger('click')
-
-    expect(localStorage.getItem('accessToken')).toBeNull()
-    expect(pushMock).toHaveBeenCalledWith('/login')
+  it('tidak logout bila konfirmasi dibatalkan', async () => {
+    Swal.fire.mockResolvedValue({ isConfirmed: false })
+    const { wrapper, router } = renderWithProviders(NavbarComponent)
+    await router.isReady()
+    await wrapper.findAll('button').at(-1).trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('home')
   })
 })

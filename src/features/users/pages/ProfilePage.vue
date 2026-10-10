@@ -1,14 +1,13 @@
-
 <script setup>
 import { onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import Swal from 'sweetalert2'
 import { useUsersStore } from '../states/usersStore.js'
-import { useAuthStore } from '../../auth/states/authStore.js'
+import { getAssetUrl } from '../../../helpers/apiHelper.js'
+import {
+  showErrorDialog,
+  showSuccessDialog,
+} from '../../../helpers/toolsHelper.js'
 
-const router = useRouter()
 const usersStore = useUsersStore()
-const authStore = useAuthStore()
 
 const name = ref('')
 const email = ref('')
@@ -32,6 +31,7 @@ watch(
       fillProfile(profile)
     }
   },
+  { immediate: true },
 )
 
 onMounted(async () => {
@@ -44,24 +44,6 @@ onMounted(async () => {
 
 function handlePhotoChange(event) {
   photoFile.value = event.target.files?.[0] ?? null
-}
-
-async function showSuccess(title, text) {
-  await Swal.fire({
-    icon: 'success',
-    title,
-    text,
-    confirmButtonText: 'Mengerti',
-  })
-}
-
-async function showError(error, fallback) {
-  await Swal.fire({
-    icon: 'error',
-    title: 'Terjadi kesalahan',
-    text: error?.message || fallback,
-    confirmButtonText: 'Mengerti',
-  })
 }
 
 async function handleProfileUpdate() {
@@ -83,9 +65,9 @@ async function handleProfileUpdate() {
       email: email.value.trim(),
     })
 
-    await showSuccess('Profil diperbarui', 'Data profil berhasil disimpan.')
+    await showSuccessDialog('Profil diperbarui', 'Data profil berhasil disimpan.')
   } catch (error) {
-    await showError(error, 'Profil gagal diperbarui.')
+    await showErrorDialog('Terjadi kesalahan', error?.message || 'Profil gagal diperbarui.')
   }
 }
 
@@ -106,10 +88,10 @@ async function handlePhotoUpload() {
     await usersStore.savePhoto(photoFile.value)
     photoFile.value = null
 
-    await showSuccess('Foto diperbarui', 'Foto profil berhasil diunggah.')
+    await showSuccessDialog('Foto diperbarui', 'Foto profil berhasil diunggah.')
     await usersStore.fetchMyProfile()
   } catch (error) {
-    await showError(error, 'Foto profil gagal diunggah.')
+    await showErrorDialog('Terjadi kesalahan', error?.message || 'Foto profil gagal diunggah.')
   }
 }
 
@@ -133,71 +115,30 @@ async function handlePasswordUpdate() {
 
   try {
     await usersStore.savePassword({
-      old_password: currentPassword.value,
+      password: currentPassword.value,
       new_password: newPassword.value,
+      new_password_confirmation: confirmPassword.value,
     })
 
     currentPassword.value = ''
     newPassword.value = ''
     confirmPassword.value = ''
 
-    await showSuccess('Kata sandi diubah', 'Kata sandi berhasil diperbarui.')
+    await showSuccessDialog('Kata sandi diubah', 'Kata sandi berhasil diperbarui.')
   } catch (error) {
-    await showError(error, 'Kata sandi gagal diubah.')
+    await showErrorDialog('Terjadi kesalahan', error?.message || 'Kata sandi gagal diubah.')
   }
-}
-
-async function handleLogout() {
-  const result = await Swal.fire({
-    icon: 'question',
-    title: 'Keluar dari akun?',
-    text: 'Kamu perlu login kembali untuk mengakses fitur pengguna.',
-    showCancelButton: true,
-    confirmButtonText: 'Keluar',
-    cancelButtonText: 'Batal',
-  })
-
-  if (!result.isConfirmed) {
-    return
-  }
-
-  await authStore.logout()
-  await router.push('/login')
 }
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-100 p-4 sm:p-8">
+  <div>
     <section class="mx-auto max-w-4xl">
-      <header class="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p class="text-sm font-semibold uppercase tracking-widest text-blue-700">
-            Student Portal
-          </p>
-          <h1 class="mt-2 text-3xl font-bold text-slate-900">
-            Profil Saya
-          </h1>
-          <p class="mt-2 text-slate-600">
-            Kelola informasi dan keamanan akunmu.
-          </p>
-        </div>
-
-        <div class="flex gap-3">
-          <RouterLink
-            to="/users"
-            class="rounded-xl border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            Daftar Pengguna
-          </RouterLink>
-
-          <button
-            type="button"
-            class="rounded-xl bg-red-600 px-4 py-3 font-semibold text-white hover:bg-red-700"
-            @click="handleLogout"
-          >
-            Keluar
-          </button>
-        </div>
+      <header class="mb-8">
+        <h1 class="text-3xl font-bold text-slate-900">Profil Saya</h1>
+        <p class="mt-2 text-slate-600">
+          Kelola informasi dan keamanan akunmu.
+        </p>
       </header>
 
       <div
@@ -218,7 +159,7 @@ async function handleLogout() {
 
         <button
           type="button"
-          class="mt-4 rounded-xl bg-blue-700 px-4 py-2 font-semibold text-white"
+          class="mt-4 rounded-xl bg-indigo-700 px-4 py-2 font-semibold text-white"
           @click="usersStore.fetchMyProfile().catch(() => {})"
         >
           Coba lagi
@@ -241,7 +182,7 @@ async function handleLogout() {
                 v-model="name"
                 type="text"
                 autocomplete="name"
-                class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
               />
             </div>
 
@@ -254,14 +195,14 @@ async function handleLogout() {
                 v-model="email"
                 type="email"
                 autocomplete="email"
-                class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
               />
             </div>
 
             <button
               type="submit"
               :disabled="usersStore.isUpdatingProfile"
-              class="rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
+              class="rounded-xl bg-indigo-700 px-5 py-3 font-semibold text-white hover:bg-indigo-800 disabled:opacity-60"
             >
               {{ usersStore.isUpdatingProfile ? 'Menyimpan...' : 'Simpan Profil' }}
             </button>
@@ -277,6 +218,13 @@ async function handleLogout() {
             Pilih gambar untuk memperbarui foto akun.
           </p>
 
+          <img
+            v-if="usersStore.profile?.photo"
+            :src="getAssetUrl(usersStore.profile.photo)"
+            alt="Foto profil"
+            class="mt-4 h-24 w-24 rounded-full object-cover"
+          />
+
           <form class="mt-5 space-y-4" @submit.prevent="handlePhotoUpload">
             <div>
               <label for="profile-photo" class="mb-2 block text-sm font-medium text-slate-700">
@@ -286,7 +234,7 @@ async function handleLogout() {
                 id="profile-photo"
                 type="file"
                 accept="image/*"
-                class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:font-semibold file:text-blue-700"
+                class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:font-semibold file:text-indigo-700"
                 @change="handlePhotoChange"
               />
             </div>
@@ -294,7 +242,7 @@ async function handleLogout() {
             <button
               type="submit"
               :disabled="usersStore.isUploadingPhoto"
-              class="rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
+              class="rounded-xl bg-indigo-700 px-5 py-3 font-semibold text-white hover:bg-indigo-800 disabled:opacity-60"
             >
               {{ usersStore.isUploadingPhoto ? 'Mengunggah...' : 'Unggah Foto' }}
             </button>
@@ -316,7 +264,7 @@ async function handleLogout() {
                 v-model="currentPassword"
                 type="password"
                 autocomplete="current-password"
-                class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
               />
             </div>
 
@@ -329,7 +277,7 @@ async function handleLogout() {
                 v-model="newPassword"
                 type="password"
                 autocomplete="new-password"
-                class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
               />
             </div>
 
@@ -342,7 +290,7 @@ async function handleLogout() {
                 v-model="confirmPassword"
                 type="password"
                 autocomplete="new-password"
-                class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
               />
             </div>
 
@@ -357,7 +305,7 @@ async function handleLogout() {
             <button
               type="submit"
               :disabled="usersStore.isUpdatingPassword"
-              class="rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
+              class="rounded-xl bg-indigo-700 px-5 py-3 font-semibold text-white hover:bg-indigo-800 disabled:opacity-60"
             >
               {{ usersStore.isUpdatingPassword ? 'Memperbarui...' : 'Ganti Kata Sandi' }}
             </button>
@@ -365,5 +313,5 @@ async function handleLogout() {
         </section>
       </template>
     </section>
-  </main>
+  </div>
 </template>

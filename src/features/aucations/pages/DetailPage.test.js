@@ -1,403 +1,309 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import { createRouter, createMemoryHistory } from 'vue-router'
-import { nextTick } from 'vue'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
+import Swal from 'sweetalert2'
+import { renderWithProviders } from '../../../test-utils.js'
 import DetailPage from './DetailPage.vue'
-import BidModal from '../modals/BidModal.vue'
-import ChangeModal from '../modals/ChangeModal.vue'
-import ChangeCoverModal from '../modals/ChangeCoverModal.vue'
-import { useAucationsStore } from '../states/aucationsStore.js'
+import * as api from '../api/aucationApi.js'
+import * as userApi from '../../users/api/userApi.js'
 
-const routes = [
-  { path: '/', name: 'home', component: { template: '<div>Home</div>' } },
-  {
-    path: '/aucations/:id',
-    name: 'detail-aucation',
-    component: { template: '<div>Detail</div>' },
+vi.mock('sweetalert2', () => ({ default: { fire: vi.fn() } }))
+vi.mock('@toast-ui/editor', () => ({
+  default: vi.fn(function () {
+    return { getMarkdown: () => '', setMarkdown: vi.fn(), destroy: vi.fn() }
+  }),
+}))
+vi.mock('@toast-ui/editor/dist/toastui-editor-viewer', () => ({
+  default: vi.fn(function () {
+    return { setMarkdown: vi.fn(), destroy: vi.fn() }
+  }),
+}))
+vi.mock('@toast-ui/editor/dist/toastui-editor.css', () => ({}))
+vi.mock('@toast-ui/editor/dist/toastui-editor-viewer.css', () => ({}))
+vi.mock('../api/aucationApi.js', () => ({
+  getAucationById: vi.fn(),
+  updateAucation: vi.fn(),
+  uploadAucationCover: vi.fn(),
+  deleteAucation: vi.fn(),
+  addBid: vi.fn(),
+  deleteBid: vi.fn(),
+}))
+vi.mock('../../users/api/userApi.js', () => ({ getMyProfile: vi.fn() }))
+
+const detail = (overrides = {}) => ({
+  data: {
+    aucation: {
+      id: 5,
+      user_id: 10,
+      title: 'Laptop',
+      description: 'Bagus',
+      cover: 'img/c.png',
+      start_bid: 1000,
+      closed_at: '2999-01-01 10:00:00',
+      author: { name: 'Budi' },
+      bids: [
+        { id: 1, bid: 1500, created_at: '2026-01-01' },
+        { id: 2, bid: 2500, created_at: '2026-01-02' },
+      ],
+      my_bid: null,
+      ...overrides,
+    },
   },
-]
-
-const makeDetail = (overrides = {}) => ({
-  id: 'auc-1',
-  title: 'Detail Lelang Laptop',
-  description: 'Deskripsi lengkap lelang',
-  start_bid: 5000000,
-  current_bid: 6000000,
-  is_closed: false,
-  cover_url: 'https://example.com/cover.jpg',
-  closed_at: new Date(Date.now() + 86400000).toISOString(),
-  ...overrides,
 })
 
-describe('DetailPage.vue', () => {
-  let wrapper
-  let store
-  let router
-  let pinia
+const routes = [
+  { path: '/', name: 'home', component: { template: '<div />' } },
+  { path: '/aucations/:aucationId', name: 'detail-aucation', component: DetailPage, props: true },
+]
 
-  const mountPage = async (detail = makeDetail()) => {
-    store.aucation = detail
-    await router.push('/aucations/auc-1')
-    await router.isReady()
+async function setup({ aucation = {}, user = { id: 99 } } = {}) {
+  api.getAucationById.mockResolvedValue(detail(aucation))
+  localStorage.clear()
+  if (user) localStorage.setItem('authUser', JSON.stringify(user))
+  const result = renderWithProviders(DetailPage, {
+    routes,
+    props: { aucationId: '5' },
+  })
+  await result.router.isReady()
+  await flushPromises()
+  return result
+}
 
-    wrapper = mount(DetailPage, {
-      global: {
-        plugins: [pinia, router],
-        stubs: {
-          NavbarComponent: true,
-          BidModal: true,
-          ChangeModal: true,
-          ChangeCoverModal: true,
-          MarkdownViewer: true,
-        },
-      },
-    })
+const button = (wrapper, label) => wrapper.findAll('button').find((b) => b.text().includes(label))
 
+describe('DetailPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    Swal.fire.mockResolvedValue({ isConfirmed: true })
+  })
+
+  it('memuat detail memakai prop aucationId dan menampilkan datanya', async () => {
+    const { wrapper } = await setup()
+    expect(api.getAucationById).toHaveBeenCalledWith('5')
+    const text = wrapper.text()
+    expect(text).toContain('Laptop')
+    expect(text).toContain('Oleh Budi')
+    expect(text).toContain('Berlangsung')
+    expect(wrapper.find('img').attributes('src')).toBe('https://open-api.delcom.org/img/c.png')
+  })
+
+  it('menampilkan riwayat bid terurut dari tertinggi', async () => {
+    const { wrapper } = await setup()
+    const rows = wrapper.findAll('[data-testid="bid-item"]')
+    expect(rows).toHaveLength(2)
+    expect(rows[0].text()).toContain('2.500')
+    expect(wrapper.text()).toContain('Tawaran tertinggi')
+  })
+
+  it('menampilkan pesan saat belum ada bid, tanpa cover/author', async () => {
+    const { wrapper } = await setup({ aucation: { bids: [], cover: null, author: null } })
+    expect(wrapper.text()).toContain('Belum ada penawaran.')
+    expect(wrapper.text()).toContain('Belum ada')
+    expect(wrapper.find('img').exists()).toBe(false)
+  })
+
+  it('menangani deskripsi null', async () => {
+    const { wrapper } = await setup({ aucation: { description: null } })
+    expect(wrapper.findComponent({ name: 'MarkdownViewer' }).props('content')).toBe('')
+  })
+
+  it('menangani bids undefined', async () => {
+    const { wrapper } = await setup({ aucation: { bids: undefined } })
+    expect(wrapper.text()).toContain('Belum ada penawaran.')
+  })
+
+  it('menampilkan loading dan state tidak ditemukan', async () => {
+    api.getAucationById.mockReturnValue(new Promise(() => {}))
+    const loading = renderWithProviders(DetailPage, { routes, props: { aucationId: '5' } })
+    await loading.wrapper.vm.$nextTick()
+    expect(loading.wrapper.text()).toContain('Memuat detail lelang')
+
+    api.getAucationById.mockRejectedValue(new Error('Tidak ada'))
+    const { wrapper } = renderWithProviders(DetailPage, { routes, props: { aucationId: '5' } })
     await flushPromises()
-    await nextTick()
-  }
-
-  beforeEach(async () => {
-    vi.restoreAllMocks()
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
-
-    pinia = createPinia()
-    setActivePinia(pinia)
-
-    router = createRouter({
-      history: createMemoryHistory(),
-      routes,
-    })
-
-    store = useAucationsStore()
-    store.aucation = makeDetail()
-    store.isAucation = false
-    store.isAucationChange = false
-    store.isAucationChangeCover = false
-    store.isBidAdd = false
-    store.errorMessage = ''
-
-    store.fetchAucation = vi.fn().mockResolvedValue()
-    store.changeAucation = vi.fn().mockResolvedValue()
-    store.changeAucationCover = vi.fn().mockResolvedValue()
-    store.addBid = vi.fn().mockResolvedValue()
-    store.deleteAucation = vi.fn().mockResolvedValue()
-
-    await mountPage()
-  })
-
-  afterEach(() => {
-    wrapper?.unmount()
-    vi.restoreAllMocks()
-  })
-
-  it('memuat detail ketika halaman dibuka', () => {
-    expect(wrapper.exists()).toBe(true)
-    expect(store.fetchAucation).toHaveBeenCalledWith('auc-1')
-    expect(wrapper.text()).toContain('Detail Lelang Laptop')
-  })
-
-  it('menampilkan harga awal dan penawaran saat ini', () => {
-    expect(wrapper.text()).toContain('5.000.000')
-    expect(wrapper.text()).toContain('6.000.000')
-  })
-
-  it('menampilkan cover jika cover_url tersedia', () => {
-    const image = wrapper.find('article img')
-    expect(image.exists()).toBe(true)
-    expect(image.attributes('src')).toBe(
-      'https://example.com/cover.jpg',
-    )
-  })
-
-  it('menampilkan deskripsi kosong jika deskripsi tidak tersedia', async () => {
-    store.aucation = makeDetail({ description: null })
-    await nextTick()
-
-    expect(wrapper.exists()).toBe(true)
-  })
-
-  it('menampilkan lelang aktif', () => {
-    expect(wrapper.text()).toContain('Lelang masih aktif')
-    expect(wrapper.text()).toContain('Aktif')
-    expect(wrapper.text()).toContain('Ajukan Penawaran')
-  })
-
-  it('menampilkan lelang yang sudah ditutup', async () => {
-    store.aucation = makeDetail({ is_closed: true })
-    await nextTick()
-
-    expect(wrapper.text()).toContain('Lelang telah ditutup')
-    expect(wrapper.text()).toContain('Ditutup')
-    expect(wrapper.find('button').exists()).toBe(true)
-    expect(wrapper.text()).not.toContain('Ajukan Penawaran')
-  })
-
-  it('menganggap lelang yang sudah melewati closed_at sebagai ditutup', async () => {
-    store.aucation = makeDetail({
-      closed_at: new Date(Date.now() - 86400000).toISOString(),
-    })
-    await nextTick()
-
-    expect(wrapper.text()).toContain('Lelang telah ditutup')
-  })
-
-  it('menampilkan halaman tidak ditemukan jika data kosong', async () => {
-    store.aucation = null
-    await nextTick()
-
     expect(wrapper.text()).toContain('Lelang tidak ditemukan')
+    expect(Swal.fire).toHaveBeenCalledWith(expect.objectContaining({ text: 'Tidak ada' }))
   })
 
-  it('menampilkan indikator loading jika detail sedang dimuat', async () => {
-    store.aucation = null
-    store.isAucation = true
-    await nextTick()
+  it('peserta lelang dapat mengajukan bid', async () => {
+    api.addBid.mockResolvedValue({})
+    const { wrapper } = await setup()
+    expect(button(wrapper, 'Ubah Lelang')).toBeUndefined()
 
-    expect(wrapper.text()).toContain('Memuat detail lelang')
-  })
+    await button(wrapper, 'Ajukan Penawaran').trigger('click')
+    const modal = wrapper.findComponent({ name: 'BidModal' })
+    expect(modal.props('show')).toBe(true)
+    expect(modal.props('currentBid')).toBe(2500)
 
-  it('membuka dan menutup modal penawaran', async () => {
-    await wrapper.get('button').exists()
-    await wrapper.get('button').trigger('click')
-    expect(wrapper.exists()).toBe(true)
-  })
-
-  it('mengirim perubahan data lelang', async () => {
-    const data = { title: 'Judul Baru' }
-
-    await wrapper.vm.$.setupState.updateAucation(data)
-
-    expect(store.changeAucation).toHaveBeenCalledWith('auc-1', data)
-  })
-
-  it('menampilkan error jika perubahan lelang gagal', async () => {
-    store.changeAucation.mockRejectedValueOnce(new Error('Gagal'))
-    store.errorMessage = 'Gagal memperbarui'
-
-    await wrapper.vm.$.setupState.updateAucation({ title: 'Baru' })
-    await nextTick()
-
-    expect(wrapper.text()).toContain('Gagal memperbarui')
-  })
-
-  it('mengirim file cover baru', async () => {
-    const file = new File(['cover'], 'cover.jpg', {
-      type: 'image/jpeg',
-    })
-
-    await wrapper.vm.$.setupState.updateCover(file)
-
-    expect(store.changeAucationCover).toHaveBeenCalledWith('auc-1', file)
-  })
-
-  it('menampilkan error jika perubahan cover gagal', async () => {
-    store.changeAucationCover.mockRejectedValueOnce(new Error('Gagal'))
-    store.errorMessage = 'Gagal mengunggah cover'
-
-    await wrapper.vm.$.setupState.updateCover(
-      new File(['cover'], 'cover.jpg', { type: 'image/jpeg' }),
-    )
-    await nextTick()
-
-    expect(wrapper.text()).toContain('Gagal mengunggah cover')
-  })
-
-  it('mengirim penawaran lalu memuat ulang detail', async () => {
-    await wrapper.vm.$.setupState.submitBid({ amount: 7000000 })
-
-    expect(store.addBid).toHaveBeenCalledWith('auc-1', {
-      amount: 7000000,
-    })
-    expect(store.fetchAucation).toHaveBeenCalledTimes(2)
-  })
-
-  it('menampilkan error jika penawaran gagal', async () => {
-    store.addBid.mockRejectedValueOnce(new Error('Gagal'))
-    store.errorMessage = 'Gagal mengajukan penawaran'
-
-    await wrapper.vm.$.setupState.submitBid({ amount: 7000000 })
-    await nextTick()
-
-    expect(wrapper.text()).toContain('Gagal mengajukan penawaran')
-  })
-
-  it('menghapus lelang setelah konfirmasi', async () => {
-    await wrapper.vm.$.setupState.removeAucation()
+    modal.vm.$emit('submit', { bid: 3000 })
     await flushPromises()
-
-    expect(store.deleteAucation).toHaveBeenCalledWith('auc-1')
-    expect(router.currentRoute.value.path).toBe('/')
-  })
-
-  it('tidak menghapus lelang jika konfirmasi ditolak', async () => {
-    window.confirm.mockReturnValueOnce(false)
-
-    await wrapper.vm.$.setupState.removeAucation()
-
-    expect(store.deleteAucation).not.toHaveBeenCalled()
-  })
-
-  it('menampilkan error jika penghapusan gagal', async () => {
-    store.deleteAucation.mockRejectedValueOnce(new Error('Gagal'))
-    store.errorMessage = 'Gagal menghapus lelang'
-
-    await wrapper.vm.$.setupState.removeAucation()
-    await nextTick()
-
-    expect(wrapper.text()).toContain('Gagal menghapus lelang')
-  })
-
-  it('menavigasi kembali ke beranda', async () => {
-    await wrapper.get('button').trigger('click')
-    await flushPromises()
-
-    expect(router.currentRoute.value.path).toBe('/')
-  })
-
-  it('menampilkan error default ketika pemuatan detail gagal', async () => {
-    store.fetchAucation.mockRejectedValueOnce(new Error('Gagal'))
-    store.errorMessage = ''
-
-    await wrapper.vm.$.setupState.loadDetail()
-    await nextTick()
-
-    expect(wrapper.text()).toContain('Gagal memuat detail lelang.')
-  })
-
-  it('menampilkan error dari store ketika pemuatan detail gagal', async () => {
-    store.fetchAucation.mockRejectedValueOnce(new Error('Gagal'))
-    store.errorMessage = 'Detail gagal dimuat'
-
-    await wrapper.vm.$.setupState.loadDetail()
-    await nextTick()
-
-    expect(wrapper.text()).toContain('Detail gagal dimuat')
-  })
-
-  it('menampilkan error default ketika perubahan lelang gagal', async () => {
-    store.changeAucation.mockRejectedValueOnce(new Error('Gagal'))
-    store.errorMessage = ''
-
-    await wrapper.vm.$.setupState.updateAucation({ title: 'Baru' })
-    await nextTick()
-
-    expect(wrapper.text()).toContain('Gagal memperbarui lelang.')
-  })
-
-  it('menampilkan error default ketika cover gagal diunggah', async () => {
-    store.changeAucationCover.mockRejectedValueOnce(new Error('Gagal'))
-    store.errorMessage = ''
-
-    await wrapper.vm.$.setupState.updateCover(
-      new File(['cover'], 'cover.jpg', { type: 'image/jpeg' }),
-    )
-    await nextTick()
-
-    expect(wrapper.text()).toContain('Gagal mengunggah cover.')
-  })
-
-  it('menampilkan error default ketika penawaran gagal', async () => {
-    store.addBid.mockRejectedValueOnce(new Error('Gagal'))
-    store.errorMessage = ''
-
-    await wrapper.vm.$.setupState.submitBid({ amount: 7000000 })
-    await nextTick()
-
-    expect(wrapper.text()).toContain('Gagal mengajukan penawaran.')
-  })
-
-  it('menampilkan error default ketika penghapusan gagal', async () => {
-    store.deleteAucation.mockRejectedValueOnce(new Error('Gagal'))
-    store.errorMessage = ''
-
-    await wrapper.vm.$.setupState.removeAucation()
-    await nextTick()
-
-    expect(wrapper.text()).toContain('Gagal menghapus lelang.')
-  })
-
-  const clickButton = async (label) => {
-    const button = wrapper
-      .findAll('button')
-      .find((item) => item.text().includes(label))
-
-    await button.trigger('click')
-  }
-
-  it('membuka dan menutup modal penawaran', async () => {
-    const modal = wrapper.findComponent(BidModal)
+    expect(api.addBid).toHaveBeenCalledWith('5', { bid: 3000 })
+    expect(api.getAucationById).toHaveBeenCalledTimes(2)
     expect(modal.props('show')).toBe(false)
+  })
 
-    await clickButton('Ajukan Penawaran')
+  it('currentBid memakai harga awal bila belum ada bid', async () => {
+    const { wrapper } = await setup({ aucation: { bids: [] } })
+    expect(wrapper.findComponent({ name: 'BidModal' }).props('currentBid')).toBe(1000)
+  })
+
+  it('currentBid bernilai 0 saat detail belum tersedia', async () => {
+    api.getAucationById.mockRejectedValue(new Error('x'))
+    const { wrapper } = renderWithProviders(DetailPage, { routes, props: { aucationId: '5' } })
+    await flushPromises()
+    expect(wrapper.findComponent({ name: 'BidModal' }).props('currentBid')).toBe(0)
+  })
+
+  it('menampilkan error saat bid gagal dan modal tetap terbuka', async () => {
+    api.addBid.mockRejectedValue(new Error('Bid ditolak'))
+    const { wrapper } = await setup()
+    await button(wrapper, 'Ajukan Penawaran').trigger('click')
+    wrapper.findComponent({ name: 'BidModal' }).vm.$emit('submit', { bid: 1 })
+    await flushPromises()
+    expect(Swal.fire).toHaveBeenLastCalledWith(expect.objectContaining({ text: 'Bid ditolak' }))
+    expect(wrapper.findComponent({ name: 'BidModal' }).props('show')).toBe(true)
+    wrapper.findComponent({ name: 'BidModal' }).vm.$emit('close')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.findComponent({ name: 'BidModal' }).props('show')).toBe(false)
+  })
+
+  it('peserta dapat membatalkan bid miliknya', async () => {
+    api.deleteBid.mockResolvedValue({})
+    const { wrapper } = await setup({ aucation: { my_bid: { id: 2, bid: 2500 } } })
+    expect(wrapper.text()).toContain('Penawaran kamu')
+
+    await button(wrapper, 'Batalkan Penawaran').trigger('click')
+    await flushPromises()
+    expect(api.deleteBid).toHaveBeenCalledWith('5')
+    expect(api.getAucationById).toHaveBeenCalledTimes(2)
+  })
+
+  it('pembatalan bid dibatalkan pengguna atau gagal', async () => {
+    const { wrapper } = await setup({ aucation: { my_bid: { id: 2, bid: 2500 } } })
+    Swal.fire.mockResolvedValueOnce({ isConfirmed: false })
+    await button(wrapper, 'Batalkan Penawaran').trigger('click')
+    await flushPromises()
+    expect(api.deleteBid).not.toHaveBeenCalled()
+
+    api.deleteBid.mockRejectedValue(new Error('Gagal batal'))
+    await button(wrapper, 'Batalkan Penawaran').trigger('click')
+    await flushPromises()
+    expect(api.getAucationById).toHaveBeenCalledTimes(1)
+  })
+
+  it('lelang ditutup tidak menampilkan tombol bid', async () => {
+    const { wrapper } = await setup({ aucation: { closed_at: '2000-01-01 10:00:00' } })
+    expect(wrapper.text()).toContain('Ditutup')
+    expect(button(wrapper, 'Ajukan Penawaran')).toBeUndefined()
+  })
+
+  it('pemilik melihat aksi ubah, cover, dan hapus', async () => {
+    const { wrapper } = await setup({ user: { id: 10 } })
+    expect(button(wrapper, 'Ubah Lelang')).toBeDefined()
+    expect(button(wrapper, 'Ubah Cover')).toBeDefined()
+    expect(button(wrapper, 'Hapus Lelang')).toBeDefined()
+    expect(button(wrapper, 'Ajukan Penawaran')).toBeUndefined()
+  })
+
+  it('pemilik dikenali dari profil bila authUser belum tersimpan', async () => {
+    userApi.getMyProfile.mockResolvedValue({ data: { user: { id: 10 } } })
+    const { wrapper } = await setup({ user: null })
+    expect(userApi.getMyProfile).toHaveBeenCalled()
+    expect(button(wrapper, 'Ubah Lelang')).toBeDefined()
+  })
+
+  it('tetap berjalan sebagai peserta bila profil gagal dimuat', async () => {
+    userApi.getMyProfile.mockRejectedValue(new Error('x'))
+    const { wrapper } = await setup({ user: null })
+    expect(button(wrapper, 'Ajukan Penawaran')).toBeDefined()
+  })
+
+  it('pemilik memperbarui data lelang', async () => {
+    api.updateAucation.mockResolvedValue({})
+    const { wrapper } = await setup({ user: { id: 10 } })
+    await button(wrapper, 'Ubah Lelang').trigger('click')
+    const modal = wrapper.findComponent({ name: 'ChangeModal' })
     expect(modal.props('show')).toBe(true)
 
-    modal.vm.$emit('close')
-    await nextTick()
-
-    expect(modal.props('show')).toBe(false)
-  })
-
-  it('membuka dan menutup modal ubah lelang', async () => {
-    const modal = wrapper.findComponent(ChangeModal)
-    expect(modal.props('show')).toBe(false)
-
-    await clickButton('Ubah Lelang')
-    expect(modal.props('show')).toBe(true)
-
-    modal.vm.$emit('close')
-    await nextTick()
-
-    expect(modal.props('show')).toBe(false)
-  })
-
-  it('membuka dan menutup modal ubah cover', async () => {
-    const modal = wrapper.findComponent(ChangeCoverModal)
-    expect(modal.props('show')).toBe(false)
-
-    await clickButton('Ubah Cover')
-    expect(modal.props('show')).toBe(true)
-
-    modal.vm.$emit('close')
-    await nextTick()
-
-    expect(modal.props('show')).toBe(false)
-  })
-
-  it('kembali ke beranda dari tampilan lelang tidak ditemukan', async () => {
-    store.aucation = null
-    await nextTick()
-
-    await clickButton('Kembali ke beranda')
+    modal.vm.$emit('submit', { title: 'Baru' })
     await flushPromises()
-
-    expect(router.currentRoute.value.path).toBe('/')
+    expect(api.updateAucation).toHaveBeenCalledWith('5', { title: 'Baru' })
+    expect(modal.props('show')).toBe(false)
   })
 
-  it('menampilkan cover dari properti cover jika cover_url tidak tersedia', async () => {
-    store.aucation = makeDetail({
-      cover_url: null,
-      cover: 'https://example.com/fallback.jpg',
-    })
-    await nextTick()
-
-    const image = wrapper.find('article img')
-    expect(image.exists()).toBe(true)
-    expect(image.attributes('src')).toBe('https://example.com/fallback.jpg')
+  it('error saat memperbarui data lelang', async () => {
+    api.updateAucation.mockRejectedValue(new Error('Gagal ubah'))
+    const { wrapper } = await setup({ user: { id: 10 } })
+    await button(wrapper, 'Ubah Lelang').trigger('click')
+    const modal = wrapper.findComponent({ name: 'ChangeModal' })
+    modal.vm.$emit('submit', {})
+    await flushPromises()
+    expect(modal.props('show')).toBe(true)
+    modal.vm.$emit('close')
+    await wrapper.vm.$nextTick()
+    expect(modal.props('show')).toBe(false)
   })
 
-  it('tidak menampilkan gambar jika cover_url dan cover tidak tersedia', async () => {
-    store.aucation = makeDetail({ cover_url: null, cover: null })
-    await nextTick()
-
-    expect(wrapper.find('article img').exists()).toBe(false)
+  it('pemilik mengganti cover', async () => {
+    api.uploadAucationCover.mockResolvedValue({})
+    const { wrapper } = await setup({ user: { id: 10 } })
+    await button(wrapper, 'Ubah Cover').trigger('click')
+    const modal = wrapper.findComponent({ name: 'ChangeCoverModal' })
+    const file = new File(['x'], 'a.png', { type: 'image/png' })
+    modal.vm.$emit('submit', file)
+    await flushPromises()
+    expect(api.uploadAucationCover).toHaveBeenCalledWith('5', file)
+    expect(modal.props('show')).toBe(false)
   })
 
-  it('menampilkan harga awal nol jika start_bid tidak tersedia', async () => {
-    store.aucation = makeDetail({ start_bid: null })
-    await nextTick()
+  it('error saat mengganti cover', async () => {
+    api.uploadAucationCover.mockRejectedValue(new Error('Cover gagal'))
+    const { wrapper } = await setup({ user: { id: 10 } })
+    await button(wrapper, 'Ubah Cover').trigger('click')
+    const modal = wrapper.findComponent({ name: 'ChangeCoverModal' })
+    modal.vm.$emit('submit', new File(['x'], 'a.png'))
+    await flushPromises()
+    expect(modal.props('show')).toBe(true)
+    modal.vm.$emit('close')
+    await wrapper.vm.$nextTick()
+    expect(modal.props('show')).toBe(false)
+  })
 
-    expect(wrapper.text()).toContain('Rp0')
+  it('pemilik menghapus lelang lalu kembali ke beranda', async () => {
+    api.deleteAucation.mockResolvedValue({})
+    const { wrapper, router } = await setup({ user: { id: 10 } })
+    await router.push('/aucations/5')
+    await button(wrapper, 'Hapus Lelang').trigger('click')
+    await flushPromises()
+    expect(api.deleteAucation).toHaveBeenCalledWith('5')
+    expect(router.currentRoute.value.name).toBe('home')
+  })
+
+  it('hapus lelang dibatalkan atau gagal', async () => {
+    const { wrapper, router } = await setup({ user: { id: 10 } })
+    await router.push('/aucations/5')
+    Swal.fire.mockResolvedValueOnce({ isConfirmed: false })
+    await button(wrapper, 'Hapus Lelang').trigger('click')
+    await flushPromises()
+    expect(api.deleteAucation).not.toHaveBeenCalled()
+
+    api.deleteAucation.mockRejectedValue(new Error('Gagal hapus'))
+    await button(wrapper, 'Hapus Lelang').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.name).not.toBe('home')
+  })
+
+  it('tombol kembali menuju beranda', async () => {
+    const { wrapper, router } = await setup()
+    await router.push('/aucations/5')
+    await button(wrapper, 'Kembali').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('home')
+  })
+
+  it('memuat ulang saat prop aucationId berubah', async () => {
+    const { wrapper } = await setup()
+    await wrapper.setProps({ aucationId: '6' })
+    await flushPromises()
+    expect(api.getAucationById).toHaveBeenLastCalledWith('6')
   })
 })

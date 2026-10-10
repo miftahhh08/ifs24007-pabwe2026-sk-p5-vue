@@ -7,6 +7,11 @@ import {
   showConfirmDialog,
   formatRupiah,
   formatDate,
+  toApiDateTime,
+  toInputDateTime,
+  isClosedAt,
+  getCountdown,
+  getHighestBid,
 } from './toolsHelper.js'
 
 vi.mock('sweetalert2', () => ({
@@ -86,5 +91,38 @@ describe('toolsHelper', () => {
 
   it('mengembalikan tanda strip jika tanggal tidak valid', () => {
     expect(formatDate('tanggal-salah')).toBe('-')
+  })
+
+  it('toApiDateTime / toInputDateTime mengonversi format tanggal', () => {
+    expect(toApiDateTime('')).toBe('')
+    expect(toApiDateTime('2026-10-10T17:25')).toBe('2026-10-10 17:25:00')
+    expect(toApiDateTime('2026-10-10T17:25:30')).toBe('2026-10-10 17:25:30')
+    expect(toInputDateTime('')).toBe('')
+    expect(toInputDateTime('2026-10-10 17:25:00')).toBe('2026-10-10T17:25')
+  })
+
+  it('isClosedAt menentukan status lelang ditutup', () => {
+    const now = new Date('2026-10-10T12:00:00').getTime()
+    expect(isClosedAt('', now)).toBe(false)
+    expect(isClosedAt('bukan-tanggal', now)).toBe(false)
+    expect(isClosedAt('2026-10-10 11:00:00', now)).toBe(true)
+    expect(isClosedAt('2026-10-10 13:00:00', now)).toBe(false)
+    expect(isClosedAt('2000-01-01 00:00:00')).toBe(true)
+  })
+
+  it('getCountdown menghasilkan teks sisa waktu', () => {
+    const now = new Date('2026-10-10T12:00:00').getTime()
+    expect(getCountdown('', now)).toBe('-')
+    expect(getCountdown('x', now)).toBe('Lelang berakhir')
+    expect(getCountdown('2026-10-10 11:00:00', now)).toBe('Lelang berakhir')
+    expect(getCountdown('2026-10-12 15:00:00', now)).toBe('Sisa 2 hari 3 jam')
+    expect(getCountdown('2026-10-10 14:30:00', now)).toBe('Sisa 2 jam 30 menit')
+    expect(getCountdown('2999-01-01 00:00:00')).toMatch(/^Sisa/)
+  })
+
+  it('getHighestBid mengambil nominal tertinggi', () => {
+    expect(getHighestBid(undefined)).toBeNull()
+    expect(getHighestBid([1, 2])).toBeNull()
+    expect(getHighestBid([{ bid: 100 }, { bid: 300 }, { bid: 200 }])).toBe(300)
   })
 })

@@ -10,6 +10,21 @@ export function getApiBaseUrl(baseUrl = DEFAULT_API_BASE_URL) {
 const API_BASE_URL = getApiBaseUrl(DELCOM_BASEURL)
 
 /**
+ * Mengubah path aset relatif dari API (mis. foto/cover) menjadi URL absolut.
+ */
+export function getAssetUrl(path) {
+  if (!path) {
+    return ''
+  }
+
+  if (/^(https?:|data:|blob:)/.test(path)) {
+    return path
+  }
+
+  return `${new URL(API_BASE_URL).origin}/${String(path).replace(/^\//, '')}`
+}
+
+/**
  * Mengambil access token dari localStorage.
  */
 export function getAccessToken() {
@@ -100,5 +115,3 @@ export async function fetchApi(endpoint, options = {}) {
 
   return data
 }
-
-export const fetchAPI = fetchApi

@@ -1,315 +1,238 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
-import { createRouter, createMemoryHistory } from 'vue-router'
-import { nextTick } from 'vue'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
+import Swal from 'sweetalert2'
+import { renderWithProviders } from '../../../test-utils.js'
 import HomePage from './HomePage.vue'
-import AddModal from '../modals/AddModal.vue'
-import { useAucationsStore } from '../states/aucationsStore.js'
+import * as api from '../api/aucationApi.js'
+
+vi.mock('sweetalert2', () => ({ default: { fire: vi.fn() } }))
+vi.mock('../api/aucationApi.js', () => ({
+  getAucations: vi.fn(),
+  deleteAucation: vi.fn(),
+  deleteAllAucations: vi.fn(),
+  addAucation: vi.fn(),
+}))
+
+const future = '2999-01-01 10:00:00'
+const past = '2000-01-01 10:00:00'
+
+const items = [
+  { id: 1, title: 'Laptop', description: 'Gaming', start_bid: 1000, closed_at: future, cover: 'img/a.png', bids: [{ id: 1, bid: 3000 }] },
+  { id: 2, title: 'Kamera', description: 'Mirrorless', start_bid: 500, closed_at: past, bids: [5, 6] },
+  { id: 3, title: 'Jam', description: null, start_bid: 200, closed_at: future },
+  { id: 4, title: null, description: 'Tanpa judul', start_bid: 100, closed_at: future },
+]
 
 const routes = [
-  { path: '/', name: 'home', component: { template: '<div>Home</div>' } },
-  {
-    path: '/aucations/:id',
-    name: 'detail-aucation',
-    component: { template: '<div>Detail</div>' },
-  },
+  { path: '/', name: 'home', component: HomePage },
+  { path: '/aucations/:aucationId', name: 'detail-aucation', component: { template: '<div />' } },
 ]
 
-const makeAucations = () => [
-  {
-    id: 'auc-1',
-    title: 'Laptop Gaming ASUS',
-    description: 'Laptop spesifikasi tinggi',
-    start_bid: 15000000,
-    is_closed: false,
-    cover_url: 'https://example.com/laptop.jpg',
-    closed_at: new Date(Date.now() + 86400000).toISOString(),
-  },
-  {
-    id: 'auc-2',
-    title: 'Kamera Mirrorless',
-    description: 'Kamera bekas kondisi mulus',
-    start_bid: 8000000,
-    is_closed: true,
-    cover_url: null,
-  },
-  {
-    id: 'auc-3',
-    title: 'Meja Belajar',
-    description: '',
-    start_bid: null,
-    is_closed: false,
-    cover: 'https://example.com/meja.jpg',
-  },
-  {
-    id: 'auc-4',
-    title: 'Jam Tangan',
-    description: 'Barang lelang lama',
-    start_bid: 250000,
-    is_closed: false,
-    closed_at: new Date(Date.now() - 86400000).toISOString(),
-  },
-]
-
-describe('HomePage.vue', () => {
-  let wrapper
-  let store
-  let router
-  let pinia
-
-  const mountPage = async () => {
-    await router.push('/')
-    await router.isReady()
-
-    wrapper = mount(HomePage, {
-      global: {
-        plugins: [pinia, router],
-        stubs: {
-          NavbarComponent: true,
-          SidebarComponent: true,
-          AddModal: true,
-        },
-      },
-    })
-
-    await flushPromises()
-    await nextTick()
+async function setup(initialRoute = '/') {
+  const result = renderWithProviders(HomePage, {
+    routes,
+    initialRoute,
+    props: {},
+  })
+  await result.router.isReady()
+  if (initialRoute !== '/') {
+    await result.router.push(initialRoute)
   }
+  await flushPromises()
+  return result
+}
 
-  beforeEach(async () => {
-    pinia = createPinia()
-    setActivePinia(pinia)
+const cards = (wrapper) => wrapper.findAll('[data-testid="aucation-card"]')
 
-    router = createRouter({
-      history: createMemoryHistory(),
-      routes,
-    })
-
-    store = useAucationsStore()
-    store.aucations = makeAucations()
-    store.isAucation = false
-    store.isAucationAdd = false
-    store.errorMessage = ''
-    store.fetchAucations = vi.fn().mockResolvedValue()
-    store.addAucation = vi.fn().mockResolvedValue()
-
-    await mountPage()
+describe('HomePage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    api.getAucations.mockResolvedValue({ data: { aucations: items } })
+    Swal.fire.mockResolvedValue({ isConfirmed: true })
   })
 
-  afterEach(() => {
-    wrapper?.unmount()
-    vi.restoreAllMocks()
+  afterEach(() => vi.useRealTimers())
+
+  it('memuat dan menampilkan kartu lelang', async () => {
+    const { wrapper } = await setup()
+    expect(api.getAucations).toHaveBeenCalledWith({})
+    expect(cards(wrapper)).toHaveLength(4)
+    const text = wrapper.text()
+    expect(text).toContain('Laptop')
+    expect(text).toContain('Tawaran tertinggi')
+    expect(text).toContain('2 tawaran')
+    expect(text).toContain('0 tawaran')
+    expect(text).toContain('Belum ada cover')
+    expect(text).toContain('Tidak ada deskripsi.')
+    expect(wrapper.find('img').attributes('src')).toBe('https://open-api.delcom.org/img/a.png')
   })
 
-  it('memuat daftar lelang ketika halaman dibuka', () => {
-    expect(store.fetchAucations).toHaveBeenCalledOnce()
-    expect(wrapper.text()).toContain('Daftar Lelang')
-    expect(wrapper.text()).toContain('Laptop Gaming ASUS')
-    expect(wrapper.text()).toContain('Kamera Mirrorless')
+  it('menampilkan status berlangsung dan ditutup', async () => {
+    const { wrapper } = await setup()
+    expect(cards(wrapper)[0].text()).toContain('Berlangsung')
+    expect(cards(wrapper)[1].text()).toContain('Ditutup')
   })
 
-  it('menampilkan harga dan cover lelang', () => {
-    expect(wrapper.text()).toContain('15.000.000')
-    expect(wrapper.text()).toContain('8.000.000')
-    expect(wrapper.find('img').exists()).toBe(true)
-    expect(wrapper.find('img').attributes('src')).toBe(
-      'https://example.com/laptop.jpg',
-    )
+  it('menampilkan dialog error saat gagal memuat', async () => {
+    api.getAucations.mockRejectedValue(new Error('Server error'))
+    await setup()
+    expect(Swal.fire).toHaveBeenCalledWith(expect.objectContaining({ icon: 'error', text: 'Server error' }))
   })
 
-  it('menampilkan deskripsi default jika kosong', () => {
-    expect(wrapper.text()).toContain('Tidak ada deskripsi.')
-  })
-
-  it('menampilkan status aktif dan ditutup', () => {
-    expect(wrapper.text()).toContain('Aktif')
-    expect(wrapper.text()).toContain('Ditutup')
-  })
-
-  it('mencari lelang berdasarkan judul', async () => {
-    await wrapper.get('input[aria-label="Cari lelang"]').setValue('Laptop')
-
-    expect(wrapper.text()).toContain('Laptop Gaming ASUS')
-    expect(wrapper.text()).not.toContain('Kamera Mirrorless')
-  })
-
-  it('mencari lelang berdasarkan deskripsi', async () => {
-    await wrapper.get('input[aria-label="Cari lelang"]').setValue('kondisi mulus')
-
-    expect(wrapper.text()).toContain('Kamera Mirrorless')
-    expect(wrapper.text()).not.toContain('Laptop Gaming ASUS')
-  })
-
-  it('melakukan pencarian tanpa membedakan huruf besar dan kecil', async () => {
-    await wrapper.get('input[aria-label="Cari lelang"]').setValue('LAPTOP')
-
-    expect(wrapper.text()).toContain('Laptop Gaming ASUS')
-  })
-
-  it('menampilkan semua lelang saat filter all dipilih', async () => {
-    await wrapper.get('select[aria-label="Filter lelang"]').setValue('all')
-
-    expect(wrapper.text()).toContain('Laptop Gaming ASUS')
-    expect(wrapper.text()).toContain('Kamera Mirrorless')
-  })
-
-  it('hanya menampilkan lelang aktif', async () => {
-    await wrapper.get('select[aria-label="Filter lelang"]').setValue('active')
-
-    expect(wrapper.text()).toContain('Laptop Gaming ASUS')
-    expect(wrapper.text()).not.toContain('Kamera Mirrorless')
-    expect(wrapper.text()).not.toContain('Jam Tangan')
-  })
-
-  it('hanya menampilkan lelang yang ditutup', async () => {
-    await wrapper.get('select[aria-label="Filter lelang"]').setValue('closed')
-
-    expect(wrapper.text()).toContain('Kamera Mirrorless')
-    expect(wrapper.text()).toContain('Jam Tangan')
-    expect(wrapper.text()).not.toContain('Laptop Gaming ASUS')
-  })
-
-  it('menampilkan kondisi kosong jika pencarian tidak cocok', async () => {
-    await wrapper.get('input[aria-label="Cari lelang"]').setValue('TidakAda')
-
-    expect(wrapper.text()).toContain('Belum ada lelang')
-  })
-
-  it('menampilkan kondisi kosong jika daftar lelang kosong', async () => {
-    store.aucations = []
-    await nextTick()
-
+  it('menampilkan state kosong', async () => {
+    api.getAucations.mockResolvedValue({ data: { aucations: [] } })
+    const { wrapper } = await setup()
     expect(wrapper.text()).toContain('Belum ada lelang')
   })
 
   it('menampilkan indikator loading', async () => {
-    store.isAucation = true
-    await nextTick()
-
+    api.getAucations.mockReturnValue(new Promise(() => {}))
+    const { wrapper } = renderWithProviders(HomePage, { routes })
+    await wrapper.vm.$nextTick()
     expect(wrapper.text()).toContain('Memuat daftar lelang')
   })
 
-  it('membuka modal tambah lelang', async () => {
-    await wrapper.get('button').trigger('click')
-    await nextTick()
-
-    expect(wrapper.exists()).toBe(true)
+  it('live search memfilter judul dan deskripsi', async () => {
+    const { wrapper } = await setup()
+    await wrapper.find('input[type="search"]').setValue('mirror')
+    expect(cards(wrapper)).toHaveLength(1)
+    expect(cards(wrapper)[0].text()).toContain('Kamera')
+    await wrapper.find('input[type="search"]').setValue('lap')
+    expect(cards(wrapper)[0].text()).toContain('Laptop')
   })
 
-  it('berhasil membuat lelang', async () => {
-    const data = { title: 'Lelang Baru', start_bid: 100000 }
+  it('tab berlangsung dan ditutup memfilter secara lokal', async () => {
+    const { wrapper, router } = await setup()
+    const tabs = wrapper.findAll('[role="tab"]')
+    expect(tabs).toHaveLength(4)
 
-    await wrapper.vm.$.setupState.createAucation(data)
-
-    expect(store.addAucation).toHaveBeenCalledWith(data)
-  })
-
-  it('menampilkan error store jika pembuatan lelang gagal', async () => {
-    store.addAucation.mockRejectedValueOnce(new Error('Gagal'))
-    store.errorMessage = 'Tidak dapat membuat lelang'
-
-    await wrapper.vm.$.setupState.createAucation({ title: 'Baru' })
-    await nextTick()
-
-    expect(wrapper.text()).toContain('Tidak dapat membuat lelang')
-  })
-
-  it('menampilkan pesan default jika pembuatan lelang gagal tanpa error store', async () => {
-    store.addAucation.mockRejectedValueOnce(new Error('Gagal'))
-    store.errorMessage = ''
-
-    await wrapper.vm.$.setupState.createAucation({ title: 'Baru' })
-    await nextTick()
-
-    expect(wrapper.text()).toContain('Gagal membuat lelang.')
-  })
-
-  it('menampilkan error store jika pemuatan daftar gagal', async () => {
-    store.fetchAucations.mockRejectedValueOnce(new Error('Gagal'))
-    store.errorMessage = 'Daftar gagal dimuat'
-
-    await wrapper.vm.$.setupState.loadAucations()
-    await nextTick()
-
-    expect(wrapper.text()).toContain('Daftar gagal dimuat')
-  })
-
-  it('menampilkan pesan default jika pemuatan daftar gagal tanpa error store', async () => {
-    store.fetchAucations.mockRejectedValueOnce(new Error('Gagal'))
-    store.errorMessage = ''
-
-    await wrapper.vm.$.setupState.loadAucations()
-    await nextTick()
-
-    expect(wrapper.text()).toContain('Gagal memuat daftar lelang.')
-  })
-
-  it('membuka halaman detail lelang saat tombol diklik', async () => {
-    const buttons = wrapper.findAll('button')
-    const detailButton = buttons.find(button =>
-      button.text().includes('Lihat Detail'),
-    )
-
-    expect(detailButton).toBeDefined()
-
-    await detailButton.trigger('click')
+    await tabs[2].trigger('click')
     await flushPromises()
+    expect(router.currentRoute.value.query.filter).toBe('active')
+    expect(cards(wrapper)).toHaveLength(3)
 
-    expect(router.currentRoute.value.path).toBe('/aucations/auc-1')
+    await tabs[3].trigger('click')
+    await flushPromises()
+    expect(cards(wrapper)).toHaveLength(1)
+    expect(cards(wrapper)[0].text()).toContain('Kamera')
+
+    await tabs[0].trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query.filter).toBeUndefined()
+    expect(cards(wrapper)).toHaveLength(4)
   })
 
-  it('menggabungkan filter pencarian dan status', async () => {
-    await wrapper.get('input[aria-label="Cari lelang"]').setValue('Laptop')
-    await wrapper.get('select[aria-label="Filter lelang"]').setValue('active')
-
-    expect(wrapper.text()).toContain('Laptop Gaming ASUS')
-    expect(wrapper.text()).not.toContain('Kamera Mirrorless')
+  it('tab Lelang Saya meminta is_me=1 dan menampilkan aksi cepat', async () => {
+    const { wrapper } = await setup('/?filter=mine')
+    expect(api.getAucations).toHaveBeenLastCalledWith({ is_me: 1 })
+    expect(wrapper.text()).toContain('Hapus Semua Lelang Saya')
+    expect(wrapper.find('button[aria-label="Hapus Laptop"]').exists()).toBe(true)
   })
 
-  it('menangani harga awal bernilai nol', async () => {
-    store.aucations = [
-      {
-        id: 'auc-zero',
-        title: 'Lelang Gratis',
-        description: 'Contoh',
-        start_bid: 0,
-        is_closed: false,
-      },
-    ]
-    await nextTick()
-
-    expect(wrapper.text()).toContain('Rp0')
+  it('query tidak valid jatuh ke tab semua', async () => {
+    const { wrapper } = await setup('/?filter=ngawur')
+    expect(wrapper.find('[role="tab"][aria-selected="true"]').text()).toBe('Semua Lelang')
   })
 
-  it('menutup modal tambah lelang ketika modal mengirim event close', async () => {
-    const modal = wrapper.findComponent(AddModal)
-    expect(modal.props('show')).toBe(false)
+  it('mengikuti perubahan query dari sidebar', async () => {
+    const { wrapper, router } = await setup()
+    await router.push('/?filter=mine')
+    await flushPromises()
+    expect(api.getAucations).toHaveBeenLastCalledWith({ is_me: 1 })
+    expect(wrapper.find('[role="tab"][aria-selected="true"]').text()).toBe('Lelang Saya')
+  })
 
-    const addButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Buat Lelang'))
+  it('membuka halaman detail', async () => {
+    const { wrapper, router } = await setup()
+    await cards(wrapper)[0].find('button').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/aucations/1')
+  })
 
-    await addButton.trigger('click')
+  it('membuat lelang baru lalu memuat ulang', async () => {
+    api.addAucation.mockResolvedValue({})
+    const { wrapper } = await setup()
+    await wrapper.findAll('button').find((b) => b.text().includes('Buat Lelang')).trigger('click')
+    const modal = wrapper.findComponent({ name: 'AddModal' })
     expect(modal.props('show')).toBe(true)
 
-    modal.vm.$emit('close')
-    await nextTick()
-
+    modal.vm.$emit('submit', { title: 'Baru' })
+    await flushPromises()
+    expect(api.addAucation).toHaveBeenCalledWith({ title: 'Baru' })
+    expect(api.getAucations).toHaveBeenCalledTimes(2)
     expect(modal.props('show')).toBe(false)
+
+    modal.vm.$emit('close')
   })
 
-  it('menangani lelang tanpa judul dan deskripsi saat memfilter', async () => {
-    store.aucations = [
-      { id: 'auc-kosong', start_bid: 1000, is_closed: false },
-    ]
-    await nextTick()
+  it('menampilkan error saat gagal membuat lelang', async () => {
+    api.addAucation.mockRejectedValue(new Error('Judul wajib'))
+    const { wrapper } = await setup()
+    wrapper.findComponent({ name: 'AddModal' }).vm.$emit('submit', {})
+    await flushPromises()
+    expect(Swal.fire).toHaveBeenLastCalledWith(expect.objectContaining({ text: 'Judul wajib' }))
+  })
 
-    expect(wrapper.text()).not.toContain('Belum ada lelang')
-    expect(wrapper.text()).toContain('Tidak ada deskripsi.')
+  it('menutup modal tambah', async () => {
+    const { wrapper } = await setup()
+    await wrapper.findAll('button').find((b) => b.text().includes('Buat Lelang')).trigger('click')
+    wrapper.findComponent({ name: 'AddModal' }).vm.$emit('close')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.findComponent({ name: 'AddModal' }).props('show')).toBe(false)
+  })
 
-    await wrapper.get('input[aria-label="Cari lelang"]').setValue('apa saja')
+  it('menghapus satu lelang setelah konfirmasi', async () => {
+    api.deleteAucation.mockResolvedValue({})
+    const { wrapper } = await setup('/?filter=mine')
+    await wrapper.find('button[aria-label="Hapus Laptop"]').trigger('click')
+    await flushPromises()
+    expect(api.deleteAucation).toHaveBeenCalledWith(1)
+    expect(cards(wrapper)).toHaveLength(3)
+  })
 
-    expect(wrapper.text()).toContain('Belum ada lelang')
+  it('tidak menghapus bila dibatalkan atau gagal', async () => {
+    const { wrapper } = await setup('/?filter=mine')
+    Swal.fire.mockResolvedValueOnce({ isConfirmed: false })
+    await wrapper.find('button[aria-label="Hapus Laptop"]').trigger('click')
+    await flushPromises()
+    expect(api.deleteAucation).not.toHaveBeenCalled()
+
+    api.deleteAucation.mockRejectedValue(new Error('Tidak bisa'))
+    await wrapper.find('button[aria-label="Hapus Laptop"]').trigger('click')
+    await flushPromises()
+    expect(Swal.fire).toHaveBeenLastCalledWith(expect.objectContaining({ text: 'Tidak bisa' }))
+  })
+
+  it('menghapus seluruh lelang milik pengguna', async () => {
+    api.deleteAllAucations.mockResolvedValue({})
+    const { wrapper } = await setup('/?filter=mine')
+    const button = wrapper.findAll('button').find((b) => b.text().includes('Hapus Semua'))
+    await button.trigger('click')
+    await flushPromises()
+    expect(api.deleteAllAucations).toHaveBeenCalled()
+    expect(cards(wrapper)).toHaveLength(0)
+  })
+
+  it('hapus semua: batal dan gagal', async () => {
+    const { wrapper } = await setup('/?filter=mine')
+    const button = () => wrapper.findAll('button').find((b) => b.text().includes('Hapus Semua'))
+    Swal.fire.mockResolvedValueOnce({ isConfirmed: false })
+    await button().trigger('click')
+    await flushPromises()
+    expect(api.deleteAllAucations).not.toHaveBeenCalled()
+
+    api.deleteAllAucations.mockRejectedValue(new Error('Gagal total'))
+    await button().trigger('click')
+    await flushPromises()
+    expect(Swal.fire).toHaveBeenLastCalledWith(expect.objectContaining({ text: 'Gagal total' }))
+  })
+
+  it('memperbarui status countdown berkala dan membersihkan timer', async () => {
+    vi.useFakeTimers()
+    const spy = vi.spyOn(globalThis, 'clearInterval')
+    const { wrapper } = renderWithProviders(HomePage, { routes })
+    await vi.advanceTimersByTimeAsync(31000)
+    wrapper.unmount()
+    expect(spy).toHaveBeenCalled()
   })
 })

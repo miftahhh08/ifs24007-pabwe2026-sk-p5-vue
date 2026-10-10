@@ -1,17 +1,20 @@
-
 <script setup>
 import { ref } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
-import Swal from 'sweetalert2'
 import { useAuthStore } from '../states/authStore.js'
+import { useInput } from '../../../hooks/useInput.js'
+import {
+  showErrorDialog,
+  showSuccessDialog,
+} from '../../../helpers/toolsHelper.js'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
-const name = ref('')
-const email = ref('')
-const password = ref('')
-const confirmPassword = ref('')
+const { value: name, onInput: onNameInput } = useInput('')
+const { value: email, onInput: onEmailInput } = useInput('')
+const { value: password, onInput: onPasswordInput } = useInput('')
+const { value: confirmPassword, onInput: onConfirmInput } = useInput('')
 const validationMessage = ref('')
 
 async function handleRegister() {
@@ -49,32 +52,25 @@ async function handleRegister() {
       password: password.value,
     })
 
-    await Swal.fire({
-      icon: 'success',
-      title: 'Registrasi berhasil',
-      text: 'Akun berhasil dibuat. Silakan masuk menggunakan akunmu.',
-      confirmButtonText: 'Ke halaman login',
-    })
+    await showSuccessDialog(
+      'Registrasi berhasil',
+      'Akun berhasil dibuat. Silakan masuk menggunakan akunmu.',
+    )
 
-    await router.push('/login')
+    await router.push({ name: 'login' })
   } catch (error) {
-    await Swal.fire({
-      icon: 'error',
-      title: 'Registrasi gagal',
-      text:
-        error?.message ||
-        authStore.errorMessage ||
-        'Akun belum dapat dibuat. Silakan coba kembali.',
-      confirmButtonText: 'Mengerti',
-    })
+    await showErrorDialog(
+      'Registrasi gagal',
+      error?.message || authStore.errorMessage,
+    )
   }
 }
 </script>
 
 <template>
   <div>
-    <p class="text-sm font-semibold uppercase tracking-widest text-blue-700">
-      Student Portal
+    <p class="text-sm font-semibold uppercase tracking-widest text-indigo-700">
+      Delcom Auction
     </p>
 
     <h2 class="mt-3 text-3xl font-bold text-slate-900">
@@ -93,11 +89,12 @@ async function handleRegister() {
 
         <input
           id="register-name"
-          v-model="name"
+          :value="name"
+          @input="onNameInput"
           type="text"
           autocomplete="name"
           placeholder="Nama lengkap"
-          class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+          class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
         />
       </div>
 
@@ -108,11 +105,12 @@ async function handleRegister() {
 
         <input
           id="register-email"
-          v-model="email"
+          :value="email"
+          @input="onEmailInput"
           type="email"
           autocomplete="email"
           placeholder="nama@email.com"
-          class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+          class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
         />
       </div>
 
@@ -123,11 +121,12 @@ async function handleRegister() {
 
         <input
           id="register-password"
-          v-model="password"
+          :value="password"
+          @input="onPasswordInput"
           type="password"
           autocomplete="new-password"
           placeholder="Minimal 8 karakter"
-          class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+          class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
         />
       </div>
 
@@ -138,11 +137,12 @@ async function handleRegister() {
 
         <input
           id="register-confirm-password"
-          v-model="confirmPassword"
+          :value="confirmPassword"
+          @input="onConfirmInput"
           type="password"
           autocomplete="new-password"
           placeholder="Ulangi kata sandi"
-          class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+          class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
         />
       </div>
 
@@ -157,7 +157,7 @@ async function handleRegister() {
       <button
         type="submit"
         :disabled="authStore.isAuthRegister"
-        class="w-full rounded-xl bg-blue-700 px-4 py-3 font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+        class="w-full rounded-xl bg-indigo-700 px-4 py-3 font-semibold text-white transition hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {{ authStore.isAuthRegister ? 'Sedang mendaftar...' : 'Buat akun' }}
       </button>
@@ -166,8 +166,8 @@ async function handleRegister() {
     <p class="mt-5 text-center text-sm text-slate-600">
       Sudah punya akun?
       <RouterLink
-        to="/login"
-        class="font-semibold text-blue-700 hover:underline"
+        to="/auth/login"
+        class="font-semibold text-indigo-700 hover:underline"
       >
         Masuk
       </RouterLink>

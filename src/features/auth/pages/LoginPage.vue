@@ -1,15 +1,18 @@
-﻿
 <script setup>
 import { ref } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
-import Swal from 'sweetalert2'
 import { useAuthStore } from '../states/authStore.js'
+import { useInput } from '../../../hooks/useInput.js'
+import {
+  showErrorDialog,
+  showSuccessDialog,
+} from '../../../helpers/toolsHelper.js'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
-const email = ref('')
-const password = ref('')
+const { value: email, onInput: onEmailInput } = useInput('')
+const { value: password, onInput: onPasswordInput } = useInput('')
 const isPasswordVisible = ref(false)
 const validationMessage = ref('')
 
@@ -32,32 +35,22 @@ async function handleLogin() {
       password: password.value,
     })
 
-    await Swal.fire({
-      icon: 'success',
-      title: 'Login berhasil',
-      text: 'Kamu berhasil masuk ke akun.',
-      confirmButtonText: 'Lanjutkan',
-    })
+    await showSuccessDialog('Login berhasil', 'Kamu berhasil masuk ke akun.')
 
-    await router.push('/')
+    await router.push({ name: 'home' })
   } catch (error) {
-    await Swal.fire({
-      icon: 'error',
-      title: 'Login gagal',
-      text:
-        error?.message ||
-        authStore.errorMessage ||
-        'Periksa kembali email dan kata sandimu.',
-      confirmButtonText: 'Mengerti',
-    })
+    await showErrorDialog(
+      'Login gagal',
+      error?.message || authStore.errorMessage,
+    )
   }
 }
 </script>
 
 <template>
   <div>
-    <p class="text-sm font-semibold uppercase tracking-widest text-blue-700">
-      Student Portal
+    <p class="text-sm font-semibold uppercase tracking-widest text-indigo-700">
+      Delcom Auction
     </p>
 
     <h2 class="mt-3 text-3xl font-bold text-slate-900">
@@ -76,11 +69,12 @@ async function handleLogin() {
 
         <input
           id="login-email-input"
-          v-model="email"
+          :value="email"
+          @input="onEmailInput"
           type="email"
           autocomplete="email"
           placeholder="nama@email.com"
-          class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+          class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
         />
       </div>
 
@@ -89,10 +83,11 @@ async function handleLogin() {
           Kata sandi
         </label>
 
-        <div class="flex overflow-hidden rounded-xl border border-slate-300 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-100">
+        <div class="flex overflow-hidden rounded-xl border border-slate-300 focus-within:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-100">
           <input
             id="login-password-input"
-            v-model="password"
+            :value="password"
+            @input="onPasswordInput"
             :type="isPasswordVisible ? 'text' : 'password'"
             autocomplete="current-password"
             placeholder="Masukkan kata sandi"
@@ -101,7 +96,7 @@ async function handleLogin() {
 
           <button
             type="button"
-            class="px-4 text-sm font-medium text-blue-700"
+            class="px-4 text-sm font-medium text-indigo-700"
             @click="isPasswordVisible = !isPasswordVisible"
           >
             {{ isPasswordVisible ? 'Sembunyikan' : 'Lihat' }}
@@ -121,7 +116,7 @@ async function handleLogin() {
         id="login-submit-button"
         type="submit"
         :disabled="authStore.isAuthLogin"
-        class="w-full rounded-xl bg-blue-700 px-4 py-3 font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+        class="w-full rounded-xl bg-indigo-700 px-4 py-3 font-semibold text-white transition hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {{ authStore.isAuthLogin ? 'Sedang masuk...' : 'Masuk' }}
       </button>
@@ -130,13 +125,11 @@ async function handleLogin() {
     <p class="mt-6 text-center text-sm text-slate-600">
       Belum punya akun?
       <RouterLink
-        to="/register"
-        class="font-semibold text-blue-700 hover:underline"
+        to="/auth/register"
+        class="font-semibold text-indigo-700 hover:underline"
       >
         Daftar sekarang
       </RouterLink>
     </p>
   </div>
 </template>
-
-
