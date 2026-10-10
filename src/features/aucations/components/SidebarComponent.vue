@@ -41,13 +41,13 @@ function isActive(menu) {
       data-testid="sidebar"
     >
       <div class="mb-4 flex items-center justify-between">
-        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-600">
           Menu
         </h2>
 
         <button
           type="button"
-          class="rounded-lg p-1 text-slate-500 hover:bg-slate-100 md:hidden"
+          class="rounded-lg p-1 text-slate-600 hover:bg-slate-100 md:hidden"
           aria-label="Tutup menu"
           @click="emit('close')"
         >

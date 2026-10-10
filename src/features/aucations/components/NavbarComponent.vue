@@ -59,7 +59,7 @@ async function handleLogout() {
 
       <button
         type="button"
-        class="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100"
+        class="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100"
         @click="handleLogout"
       >
         <LogOut class="h-4 w-4" aria-hidden="true" />

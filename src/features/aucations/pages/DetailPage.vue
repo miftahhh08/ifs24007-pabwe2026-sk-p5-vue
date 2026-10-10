@@ -175,7 +175,7 @@ watch(() => props.aucationId, loadDetail)
       Kembali ke daftar lelang
     </button>
 
-    <div v-if="store.isAucation" class="py-12 text-center text-slate-500" role="status">
+    <div v-if="store.isAucation" class="py-12 text-center text-slate-600" role="status">
       Memuat detail lelang...
     </div>
 
@@ -198,7 +198,7 @@ watch(() => props.aucationId, loadDetail)
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 class="text-3xl font-bold text-slate-900">{{ aucation.title }}</h1>
-            <p v-if="aucation.author" class="mt-2 text-sm text-slate-500">
+            <p v-if="aucation.author" class="mt-2 text-sm text-slate-600">
               Oleh {{ aucation.author.name }}
             </p>
           </div>
@@ -235,7 +235,7 @@ watch(() => props.aucationId, loadDetail)
             <p class="mt-1 font-semibold text-slate-900">
               {{ formatDate(aucation.closed_at) }}
             </p>
-            <p class="text-xs text-slate-500">
+            <p class="text-xs text-slate-600">
               {{ getCountdown(aucation.closed_at) }}
             </p>
           </div>
@@ -253,7 +253,7 @@ watch(() => props.aucationId, loadDetail)
         <section>
           <h2 class="mb-3 text-lg font-bold">Riwayat Penawaran</h2>
 
-          <p v-if="bidHistory.length === 0" class="text-sm text-slate-500">
+          <p v-if="bidHistory.length === 0" class="text-sm text-slate-600">
             Belum ada penawaran.
           </p>
 
@@ -264,7 +264,7 @@ watch(() => props.aucationId, loadDetail)
               class="flex items-center justify-between px-4 py-3 text-sm"
               data-testid="bid-item"
             >
-              <span class="text-slate-500">
+              <span class="text-slate-600">
                 #{{ index + 1 }} · {{ formatDate(item.created_at) }}
               </span>
               <span class="font-semibold text-slate-900">
@@ -294,7 +294,7 @@ watch(() => props.aucationId, loadDetail)
 
             <button
               type="button"
-              class="rounded-lg bg-red-50 px-4 py-2 text-red-600"
+              class="rounded-lg bg-red-50 px-4 py-2 text-red-700"
               @click="removeAucation"
             >
               Hapus Lelang
@@ -313,7 +313,7 @@ watch(() => props.aucationId, loadDetail)
             <button
               v-if="aucation.my_bid"
               type="button"
-              class="rounded-lg bg-red-50 px-4 py-2 text-red-600"
+              class="rounded-lg bg-red-50 px-4 py-2 text-red-700"
               @click="cancelBid"
             >
               Batalkan Penawaran

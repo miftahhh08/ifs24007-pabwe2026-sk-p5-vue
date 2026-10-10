@@ -73,11 +73,11 @@ async function handleRegister() {
       Delcom Auction
     </p>
 
-    <h2 class="mt-3 text-3xl font-bold text-slate-900">
+    <h1 class="mt-3 text-3xl font-bold text-slate-900">
       Buat akun baru
-    </h2>
+    </h1>
 
-    <p class="mt-2 text-sm leading-6 text-slate-500">
+    <p class="mt-2 text-sm leading-6 text-slate-600">
       Isi data berikut untuk membuat akun.
     </p>
 

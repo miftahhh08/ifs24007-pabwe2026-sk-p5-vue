@@ -14,10 +14,10 @@ import { Gavel } from 'lucide-vue-next'
       </div>
 
       <div>
-        <h1 class="text-4xl font-extrabold leading-tight">
+        <p class="text-4xl font-extrabold leading-tight">
           Temukan barang impian,<br />
           ajukan penawaran terbaikmu.
-        </h1>
+        </p>
         <p class="mt-4 max-w-md text-indigo-100">
           Platform lelang Delcom untuk membuat, memantau, dan memenangkan
           lelang secara mudah dan transparan.

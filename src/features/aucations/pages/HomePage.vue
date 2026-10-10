@@ -143,7 +143,7 @@ onUnmounted(() => clearInterval(timer))
     <div class="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
       <div>
         <h1 class="text-3xl font-bold text-slate-900">Dashboard Lelang</h1>
-        <p class="mt-1 text-slate-500">
+        <p class="mt-1 text-slate-600">
           Temukan barang dan ajukan penawaran terbaik.
         </p>
       </div>
@@ -180,7 +180,7 @@ onUnmounted(() => clearInterval(timer))
     <div class="mb-5 flex flex-col gap-3 sm:flex-row">
       <div class="relative flex-1">
         <Search
-          class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+          class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600"
           aria-hidden="true"
         />
         <input
@@ -195,7 +195,7 @@ onUnmounted(() => clearInterval(timer))
       <button
         v-if="tab === 'mine' && store.aucations.length > 0"
         type="button"
-        class="flex items-center justify-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-100"
+        class="flex items-center justify-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 hover:bg-red-100"
         @click="removeAllAucations"
       >
         <Trash2 class="h-4 w-4" aria-hidden="true" />
@@ -203,7 +203,7 @@ onUnmounted(() => clearInterval(timer))
       </button>
     </div>
 
-    <div v-if="store.isAucation" class="py-12 text-center text-slate-500" role="status">
+    <div v-if="store.isAucation" class="py-12 text-center text-slate-600" role="status">
       Memuat daftar lelang...
     </div>
 
@@ -212,7 +212,7 @@ onUnmounted(() => clearInterval(timer))
       class="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center"
     >
       <h2 class="text-lg font-semibold text-slate-700">Belum ada lelang</h2>
-      <p class="mt-2 text-sm text-slate-500">
+      <p class="mt-2 text-sm text-slate-600">
         Coba ubah pencarian atau buat lelang baru.
       </p>
     </div>
@@ -232,7 +232,7 @@ onUnmounted(() => clearInterval(timer))
         />
         <div
           v-else
-          class="flex h-44 items-center justify-center bg-slate-100 text-sm text-slate-400"
+          class="flex h-44 items-center justify-center bg-slate-100 text-sm text-slate-600"
         >
           Belum ada cover
         </div>
@@ -252,19 +252,19 @@ onUnmounted(() => clearInterval(timer))
             </span>
           </div>
 
-          <p class="line-clamp-2 text-sm text-slate-500">
+          <p class="line-clamp-2 text-sm text-slate-600">
             {{ item.description || 'Tidak ada deskripsi.' }}
           </p>
 
           <dl class="grid grid-cols-2 gap-2 text-sm">
             <div>
-              <dt class="text-slate-500">Harga awal</dt>
+              <dt class="text-slate-600">Harga awal</dt>
               <dd class="font-bold text-indigo-600">
                 {{ formatRupiah(item.start_bid) }}
               </dd>
             </div>
             <div>
-              <dt class="text-slate-500">Tawaran tertinggi</dt>
+              <dt class="text-slate-600">Tawaran tertinggi</dt>
               <dd class="font-bold text-slate-800">
                 {{
                   highestBidOf(item) !== null
@@ -275,7 +275,7 @@ onUnmounted(() => clearInterval(timer))
             </div>
           </dl>
 
-          <p class="text-xs text-slate-500">
+          <p class="text-xs text-slate-600">
             {{ getCountdown(item.closed_at, now) }}
           </p>
 
@@ -291,7 +291,7 @@ onUnmounted(() => clearInterval(timer))
             <button
               v-if="tab === 'mine'"
               type="button"
-              class="rounded-lg bg-red-50 px-3 text-red-600 hover:bg-red-100"
+              class="rounded-lg bg-red-50 px-3 text-red-700 hover:bg-red-100"
               :aria-label="`Hapus ${item.title}`"
               @click="removeAucation(item)"
             >

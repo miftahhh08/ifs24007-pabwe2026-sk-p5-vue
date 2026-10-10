@@ -30,7 +30,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div>
-    <p v-if="!content.trim()" class="text-sm italic text-slate-400">
+    <p v-if="!content.trim()" class="text-sm italic text-slate-600">
       Belum ada deskripsi.
     </p>
     <div v-show="content.trim()" ref="container" data-testid="markdown-viewer" />

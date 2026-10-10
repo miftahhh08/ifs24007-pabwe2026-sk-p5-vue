@@ -82,14 +82,14 @@ onMounted(async () => {
               <h2 class="truncate font-bold text-slate-900">
                 {{ user.name || 'Nama tidak tersedia' }}
               </h2>
-              <p class="break-all text-sm text-slate-500">
+              <p class="break-all text-sm text-slate-600">
                 {{ user.email || 'Email tidak tersedia' }}
               </p>
             </div>
           </div>
 
           <div class="mt-5 border-t border-slate-100 pt-4">
-            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-600">
               Informasi pengguna
             </p>
             <p class="mt-2 text-sm text-slate-600">

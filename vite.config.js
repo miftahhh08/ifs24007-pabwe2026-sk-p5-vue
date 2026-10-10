@@ -20,6 +20,9 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       allowedHosts: true,
     },
+    build: {
+      sourcemap: true,
+    },
     define: {
       DELCOM_BASEURL: JSON.stringify(
         env.VITE_DELCOM_BASEURL || 'https://open-api.delcom.org/api/v1',

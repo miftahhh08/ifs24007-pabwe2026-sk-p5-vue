@@ -214,7 +214,7 @@ async function handlePasswordUpdate() {
             Foto profil
           </h2>
 
-          <p class="mt-2 text-sm text-slate-500">
+          <p class="mt-2 text-sm text-slate-600">
             Pilih gambar untuk memperbarui foto akun.
           </p>
 

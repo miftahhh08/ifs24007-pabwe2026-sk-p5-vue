@@ -101,7 +101,7 @@ function submitForm() {
         />
       </label>
 
-      <p v-if="error" role="alert" class="text-sm text-red-600">{{ error }}</p>
+      <p v-if="error" role="alert" class="text-sm text-red-700">{{ error }}</p>
 
       <div class="flex justify-end gap-3">
         <button
